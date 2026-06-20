@@ -1,0 +1,24 @@
+{
+  "ab_join": {
+    "avail_unique_sample": 3069,
+    "station_unique": 2780,
+    "matched_by_number_pct": 87.42,
+    "unmatched_avail_count_sample": 386,
+    "name_match_for_unmatched": 0
+  },
+  "c_bridge_value": {
+    "unmatched_avail_found_in_rental_by_number": 9,
+    "name_via_rental_to_station_bridge_hits_sample": 0,
+    "conclusion": "C provides negligible bridge benefit; prefer dropping unmatched A rows for v1."
+  },
+  "master_csv_note": {
+    "cols": [
+      "대여소_ID",
+      "주소1",
+      "주소2",
+      "위도",
+      "경도"
+    ],
+    "rows_sample": 3421
+  }
+}

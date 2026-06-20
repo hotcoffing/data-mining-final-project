@@ -1,0 +1,27 @@
+{
+  "comparison": [
+    {
+      "model": "Linear Regression",
+      "MAE": 7.317594057028776,
+      "RMSE": 9.78560705958541,
+      "R2": 0.008787179179347904
+    },
+    {
+      "model": "Random Forest",
+      "MAE": 5.167197970524395,
+      "RMSE": 7.384000575358987,
+      "R2": 0.435615849448896
+    },
+    {
+      "model": "RF Tuned",
+      "MAE": 5.0150111199728835,
+      "RMSE": 7.119167107858028,
+      "R2": 0.47537408482112564
+    }
+  ],
+  "best_params": {
+    "model__max_depth": null,
+    "model__min_samples_leaf": 3,
+    "model__n_estimators": 150
+  }
+}
