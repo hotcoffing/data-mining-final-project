@@ -1,1 +1,1 @@
-"""Ddareungi departure prediction project package."""
+# 따릉이 출발 시각 예측 프로젝트 패키지

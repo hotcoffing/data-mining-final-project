@@ -5,8 +5,8 @@ from src.paths import AVAILABILITY_MONTHS, PROCESSED, availability_file
 from src.stations import norm_station_no
 
 
+# 일시에서 hour·요일·주말·계절 ML 특성 파생
 def _add_time_features(df: pd.DataFrame) -> pd.DataFrame:
-    """일시에서 hour·요일·주말·계절 특성 파생."""
     df = df.copy()
     df["date"] = pd.to_datetime(df["date"]).dt.date
     dt = pd.to_datetime(df["date"])
@@ -17,6 +17,7 @@ def _add_time_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# 가용성 CSV 청크 1개를 정규화·대여소 키 필터링
 def _process_chunk(chunk: pd.DataFrame, station_keys: set) -> pd.DataFrame:
     chunk.columns = [c.strip('"') for c in chunk.columns]
     out = pd.DataFrame(
@@ -31,6 +32,7 @@ def _process_chunk(chunk: pd.DataFrame, station_keys: set) -> pd.DataFrame:
     return out[out["station_no_norm"].isin(station_keys)]
 
 
+# 월별 가용성 CSV 청크 로드 후 대여소·구역 정보 조인
 def load_availability_month(
     month: str,
     stations: pd.DataFrame,
@@ -53,20 +55,22 @@ def load_availability_month(
     return _add_time_features(df)
 
 
+# 대여소×시간 → 구역×시간 평균 거치대수 집계 (ML 학습 테이블)
 def aggregate_zone_hour(station_hour: pd.DataFrame) -> pd.DataFrame:
-    """대여소×시간 → 구역×시간 평균 거치대수 집계 (ML 학습 테이블)."""
     g = station_hour.groupby(["date", "hour", "cluster_id"], as_index=False)
     zone = g.agg(
         bike_count_mean=("bike_count", "mean"),
         bike_count_max=("bike_count", "max"),
         availability_rate=("bike_count", lambda s: (s > 0).mean()),
     )
+    # 시간 특성은 구역 집계 후 첫 행에서 복사
     meta = station_hour.groupby(["date", "hour", "cluster_id"], as_index=False).first()
     for col in ["month", "dow", "is_weekend", "season"]:
         zone[col] = meta[col]
     return zone
 
 
+# ETL 전체 실행 (캐시 있으면 rebuild=False 시 스킵)
 def run_etl(stations: pd.DataFrame, months=AVAILABILITY_MONTHS, rebuild: bool = True) -> dict:
     PROCESSED.mkdir(parents=True, exist_ok=True)
     paths = {

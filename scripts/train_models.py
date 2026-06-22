@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""Train ML models on sample and save metrics."""
+# ML 모델 학습 후 joblib·성능 지표 저장
 import json
 import sys
 from pathlib import Path
@@ -18,6 +17,7 @@ SAMPLE_PATH = PROCESSED / "ml_train_sample.csv"
 METRICS_PATH = PROCESSED / "model_metrics.json"
 
 
+# 학습용 샘플 CSV가 있으면 로드, 없으면 ml_train.csv에서 무작위 추출 후 저장
 def build_sample(n: int = ML_SAMPLE_ROWS) -> pd.DataFrame:
     if SAMPLE_PATH.exists():
         return pd.read_csv(SAMPLE_PATH, encoding="utf-8")
@@ -27,6 +27,7 @@ def build_sample(n: int = ML_SAMPLE_ROWS) -> pd.DataFrame:
     return sample
 
 
+# Linear·RF·RF Tuned 학습 후 모델 파일·비교 지표 저장
 def main():
     MODELS.mkdir(exist_ok=True)
     df = build_sample()
@@ -34,6 +35,7 @@ def main():
     results = train_models(df, max_rows=len(df))
     print(results["comparison"].to_string())
     print("Best:", results["best_params"])
+    # 3종 모델을 models/ 디렉터리에 직렬화
     joblib.dump(results["linear"], MODELS / "linear_regression.joblib")
     joblib.dump(results["rf"], MODELS / "random_forest.joblib")
     joblib.dump(results["tuned"], MODELS / "rf_tuned.joblib")

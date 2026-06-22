@@ -9,13 +9,14 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 from src.config import ML_MAX_ROWS, ML_RANDOM_STATE, ML_TEST_DAYS
 
+# ML 입력·타깃 컬럼
 CAT_FEATURES = ["season"]
 NUM_FEATURES = ["hour", "dow", "is_weekend", "month", "cluster_id"]
 TARGET = "bike_count_mean"
 
 
+# 수치 표준화 + 계절 원핫 인코딩 전처리기
 def _preprocessor() -> ColumnTransformer:
-    """수치 표준화 + 계절 원핫 인코딩."""
     return ColumnTransformer(
         [
             ("num", StandardScaler(), NUM_FEATURES),
@@ -28,10 +29,12 @@ def _preprocessor() -> ColumnTransformer:
     )
 
 
+# 선형회귀 학습 파이프라인
 def build_linear_pipeline() -> Pipeline:
     return Pipeline([("prep", _preprocessor()), ("model", LinearRegression())])
 
 
+# Random Forest 학습 파이프라인
 def build_rf_pipeline(n_estimators: int = 50) -> Pipeline:
     return Pipeline(
         [
@@ -46,8 +49,8 @@ def build_rf_pipeline(n_estimators: int = 50) -> Pipeline:
     )
 
 
+# 월별 마지막 N일을 테스트, 나머지를 학습으로 분리 (시계열 누수 방지)
 def time_split(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """월별로 마지막 N일을 테스트, 나머지를 학습으로 분리 (시계열 누수 방지)."""
     df = df.copy()
     df["cluster_id"] = pd.to_numeric(df["cluster_id"], errors="coerce").fillna(-1).astype(int)
     df["date"] = pd.to_datetime(df["date"])
@@ -64,11 +67,13 @@ def time_split(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         train_parts.append(grp[~grp["date"].dt.date.isin(test_dates)])
     train = pd.concat(train_parts, ignore_index=True) if train_parts else df.iloc[:0]
     test = pd.concat(test_parts, ignore_index=True) if test_parts else df
+    # 월 단위 분리 실패 시 무작위 8:2 분할
     if len(train) == 0:
         train, test = train_test_split(df, test_size=0.2, random_state=ML_RANDOM_STATE)
     return train, test
 
 
+# MAE·RMSE·R² 평가 지표 계산
 def evaluate(y_true, y_pred) -> dict:
     return {
         "MAE": mean_absolute_error(y_true, y_pred),
@@ -77,8 +82,8 @@ def evaluate(y_true, y_pred) -> dict:
     }
 
 
+# 선형회귀·RF·GridSearch RF 3종 학습 및 성능 비교
 def train_models(df: pd.DataFrame, max_rows: int = ML_MAX_ROWS) -> dict:
-    """선형회귀·RF·GridSearch RF 3종 학습 및 성능 비교."""
     if len(df) > max_rows:
         df = df.sample(n=max_rows, random_state=ML_RANDOM_STATE)
     train, test = time_split(df)
@@ -93,6 +98,7 @@ def train_models(df: pd.DataFrame, max_rows: int = ML_MAX_ROWS) -> dict:
     rf.fit(x_train, y_train)
     rf_metrics = evaluate(y_test, rf.predict(x_test))
 
+    # RF 하이퍼파라미터 GridSearch
     param_grid = {
         "model__n_estimators": [100, 150],
         "model__max_depth": [None, 16],

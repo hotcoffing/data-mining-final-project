@@ -14,8 +14,8 @@ from src.kakao_map import geocode_or_coords, get_duration
 from src.stations import assign_cluster, nearest_station
 
 
+# 대여 시각·구역으로 ML 입력 특성 1행 생성
 def _features_for(rent_time: datetime, cluster_id: int) -> pd.DataFrame:
-    """대여 시각·구역으로 ML 입력 특성 1행 생성."""
     return pd.DataFrame(
         [
             {
@@ -30,24 +30,25 @@ def _features_for(rent_time: datetime, cluster_id: int) -> pd.DataFrame:
     )
 
 
+# 등록된 모든 모델로 거치대수 예측
 def _predict_all(models: dict, features: pd.DataFrame) -> dict[str, float]:
     return {name: float(pipe.predict(features)[0]) for name, pipe in models.items()}
 
 
+# 대여 가능 판정에 사용할 예측값 (RF Tuned 우선)
 def _feasibility_pred(preds: dict[str, float]) -> float:
-    """판정용 예측값 — RF Tuned 우선, 없으면 최댓값 사용."""
     if FEASIBILITY_MODEL in preds:
         return preds[FEASIBILITY_MODEL]
     return max(preds.values())
 
 
+# 가용 대수 부족 시 대여 시각을 1시간씩 앞당겨 최대 N회 재예측
 def _retry_until_available(
     models: dict,
     rent_time: datetime,
     cluster_id: int,
     min_bikes: int,
 ) -> tuple[dict[str, float], datetime, int, bool]:
-    """가용 대수 부족 시 대여 시각을 1시간씩 앞당겨 최대 N회 재예측."""
     rent_time_adjusted = False
     for attempt in range(MAX_RENT_RETRIES + 1):
         preds = _predict_all(models, _features_for(rent_time, cluster_id))
@@ -59,6 +60,7 @@ def _retry_until_available(
     return preds, rent_time, MAX_RENT_RETRIES, rent_time_adjusted
 
 
+# 예측 결과를 콘솔/Notebook에 한글 요약 출력
 def print_origin_prediction_summary(result: dict) -> None:
     preds = result["predictions"]
     avg_pred = sum(preds.values()) / len(preds)
@@ -88,6 +90,7 @@ def print_origin_prediction_summary(result: dict) -> None:
     print("=" * 52)
 
 
+# 출발지 주소·할당 시간으로 가장 가까운 구역 대여소 가용성 예측
 def predict_origin_rental(
     stations: pd.DataFrame,
     models: dict,
@@ -98,7 +101,6 @@ def predict_origin_rental(
     origin_lng: float | None = None,
     reference_time: datetime | None = None,
 ) -> dict:
-    """출발지 주소·할당 시간으로 가장 가까운 구역 대여소 가용성 예측."""
     ref = reference_time or datetime.now()
     olat, olng, origin_mode = geocode_or_coords(origin_address, origin_lat, origin_lng)
 
@@ -107,8 +109,10 @@ def predict_origin_rental(
     near = nearest_station(cluster_stations, olat, olng)
 
     walk_sec, walk_mode = get_duration((olat, olng), (near["lat"], near["lng"]), "walk")
+    # 할당 시간(분) 안에 대여소까지 도보로 도달 가능한지 판단
     timing_feasible = walk_sec <= available_minutes * 60
 
+    # 기준 시각 + 도보 시간 = 대여소 도착(대여) 시각
     rent_time = ref + timedelta(seconds=walk_sec)
     depart_home = ref
 

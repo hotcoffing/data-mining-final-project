@@ -1,4 +1,4 @@
-"""Build processed datasets: stations, availability, zone-hour aggregates."""
+# 전처리 데이터셋 생성: 대여소, 가용성, 구역-시간 집계
 import json
 import sys
 from pathlib import Path
@@ -15,6 +15,7 @@ from src.paths import AVAILABILITY_MONTHS, DOCS, PROCESSED, availability_file
 from src.stations import join_match_stats, load_stations, norm_station_no
 
 
+# 가용성·대여소 조인 매칭 통계를 docs/ 리포트로 저장
 def write_join_report(stations: pd.DataFrame) -> dict:
     sample_month = AVAILABILITY_MONTHS[0]
     sample = pd.read_csv(
@@ -54,8 +55,10 @@ Match rate meets PRD expectation (~87%). Unmatched rows are likely closed statio
     return stats
 
 
+# DBSCAN 군집화 결과·직경 분포를 docs/ 리포트로 저장
 def write_cluster_report(stations: pd.DataFrame) -> None:
     stats = cluster_diameter_stats(stations)
+    # 리포트 임계값 초과 구역 수
     over = (stats["max_diameter_m"] > CLUSTER_DIAMETER_REPORT_M).sum()
     md = f"""# Clustering Report
 
@@ -82,6 +85,7 @@ def write_cluster_report(stations: pd.DataFrame) -> None:
     (DOCS / "clustering-report.md").write_text(md, encoding="utf-8")
 
 
+# 대여소 로드 → 조인 리포트 → 군집화 → ETL 순서로 파이프라인 실행
 def main():
     PROCESSED.mkdir(parents=True, exist_ok=True)
     print("Loading stations...")
@@ -92,6 +96,7 @@ def main():
     save_stations(stations)
     write_cluster_report(stations)
     print("ETL (3 months, chunked)...")
+    # 3개월 가용성 청크 ETL 후 station_hour·zone_hour 생성
     data = run_etl(stations, rebuild=True)
     print("Rows station_hour:", len(data["station_hour"]))
     print("Rows zone_hour:", len(data["zone_hour"]))
